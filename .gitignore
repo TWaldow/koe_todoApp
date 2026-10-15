@@ -1,0 +1,46 @@
+# --- Private Projektdokumente: alle Markdown-Dateien außer README ---
+*.md
+!README.md
+
+# --- Claude Code ---
+.claude/
+
+# --- Secrets (nie committen) ---
+.env
+.env.*
+!.env.example
+
+# --- Python / Backend ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Docker (lokale DB-Daten) ---
+pgdata/
+postgres-data/
+
+# --- Android / Gradle ---
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# --- IDEs ---
+.idea/
+*.iml
+.vscode/
+
+# --- Betriebssystem / Sonstiges ---
+.DS_Store
+Thumbs.db
+*.log
