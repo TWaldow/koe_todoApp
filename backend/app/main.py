@@ -19,13 +19,16 @@ async def lifespan(app: FastAPI):
 
         folder = database.scalar(select(models.Folder).where(models.Folder.is_system))
         if folder is None:
-            # Systemordner anlegen
+            # Systemordner uns settings anlegen
             database.add_all(
                 [
                     models.Folder(name="Allgemein", color="#4169E1", is_system=True, position=0),
                 ]
             )
             database.commit()
+
+        if database.get(models.Settings, 1) is None:
+            database.add(models.Settings())
     yield
 
 koe = FastAPI(title="Koe", lifespan=lifespan)
