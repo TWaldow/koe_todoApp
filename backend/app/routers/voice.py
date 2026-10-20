@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app import schemas
 from app.auth import require_token
-from app.db import get_db
+from app.database import get_db
 
 router = APIRouter(
     prefix="/voice-todos", tags=["voice"], dependencies=[Depends(require_token)]

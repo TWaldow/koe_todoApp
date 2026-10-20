@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
 
-from FASTAPI import FastAPI
+from sqlalchemy import select
+
+from fastapi import FastAPI
 
 
 from app import models
@@ -15,8 +17,8 @@ async def lifespan(app: FastAPI):
 
     with SessionLocal() as database:
 
-        database.scalar(select(models.Folder).where(Folder.is_system))
-        if fodler is None:
+        folder = database.scalar(select(models.Folder).where(models.Folder.is_system))
+        if folder is None:
             # Systemordner anlegen
             database.add_all(
                 [
@@ -25,3 +27,14 @@ async def lifespan(app: FastAPI):
             )
             database.commit()
     yield
+
+koe = FastAPI(title="Koe", lifespan=lifespan)
+
+
+@koe.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+for r in (folders, todos, settings, voice, calender):
+    koe.include_router(r.router)

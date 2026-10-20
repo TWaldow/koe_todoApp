@@ -1,9 +1,9 @@
 from datetime import date, datetime, time
 
-from sqlalchemy import CheckConstraint, DateTime, Enum as SAEnum, ForeignKey, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, Enum as SAEnum, ForeignKey, String, Text, func, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.app.database import Base
+from app.database import Base
 from app.enums import DueType, Recurrence
 
 
@@ -35,7 +35,7 @@ class Todo(Base):
     folder_id: Mapped[int] = mapped_column(ForeignKey("folders.id"))
     important: Mapped[bool] = mapped_column(default=False)
     recurrence: Mapped[Recurrence] = mapped_column(
-        SAEnum(Recurrence, name="recurrence"), default=Recurrence.none
+        SAEnum(Recurrence, name="recurrence", values_callable=lambda e: [m.value for m in e])
     )
     recurrence_anchor: Mapped[date | None]
     due_type: Mapped[DueType | None] = mapped_column(SAEnum(DueType, name="due_type"))

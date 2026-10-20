@@ -41,7 +41,7 @@ class TodoCreate(BaseModel):
     text: str = Field(min_length=1)
     folder_id: int | None = None  # None -> Ordner "Allgemein" (setzt der Router)
     important: bool = False
-    recurrence: Recurrence = Recurrence.none
+    recurrence: Recurrence = Recurrence.NONE
     due_type: DueType | None = None
     due_date: date | None = None
     # recurrence_anchor kommt nicht vom Client, der Server setzt ihn auf heute.
