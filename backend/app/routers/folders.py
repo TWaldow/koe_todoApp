@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select, update, delete, func
+from sqlalchemy.exc import IntegrityError
 
 from app import schemas
 from app.auth import require_token
 from app.database import get_db
 
-from app.models import Folder
+from app.models import Folder, Todo
+
 
 
 router = APIRouter(prefix="/folders", tags=["folders"], dependencies=[Depends(require_token)])
@@ -32,7 +34,11 @@ def create_folder(data: schemas.FolderCreate, db: Session = Depends(get_db)):
         position = max_position + 1
     folder = Folder(name=data.name, color=data.color, position=position)
     db.add(folder)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Folder name already exists")
     db.refresh(folder)
     return folder
 
