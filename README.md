@@ -1,5 +1,7 @@
 # Koe – Todo
 
+"Koe" ist japanisch und bedeutet ünersetzt "Stimme"
+
 Eine persönliche, ADHS-freundliche Todo-App für Android, bei der Todos vor allem per Sprache angelegt werden sollen.
 
 ## Warum
