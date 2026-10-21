@@ -23,6 +23,7 @@ def db():
     Base.metadata.create_all(engine)
     session = sessionmaker(bind=engine)()
     session.add(models.Folder(name="Allgemein", color="#4169E1", is_system=True, position=0))
+    session.add(models.ServerSettings())    
     session.commit()
     yield session
     session.close()

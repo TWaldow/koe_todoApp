@@ -8,5 +8,5 @@ class Recurrence(str, enum.Enum):
     MONTHLY = "monthly"
 
 class DueType(str, enum.Enum):
-    deadline = "deadline"
-    fixed = "fixed"
+    DEADLINE = "deadline"
+    FIXED = "fixed"
