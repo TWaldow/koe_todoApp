@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.twaldow.koe.data.repository.VoiceRepository
 import com.twaldow.koe.util.needsDarkText
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -82,6 +83,8 @@ fun VoiceAddButton(
     }
 
     var state by remember { mutableStateOf<VoiceUiState>(VoiceUiState.Idle) }
+    // Letztes onPartialResults, unabhängig vom aktuellen State - Absicherung für stopAndSend().
+    var lastPartialText by remember { mutableStateOf("") }
 
     fun sendTranscript(text: String) {
         state = VoiceUiState.Sending(text)
@@ -106,6 +109,7 @@ fun VoiceAddButton(
         SpeechRecognizerController(
             context = context,
             onPartialResult = { text ->
+                lastPartialText = text
                 state = when (val s = state) {
                     is VoiceUiState.Recording -> VoiceUiState.Recording(text)
                     is VoiceUiState.Pinned -> VoiceUiState.Pinned(text)
@@ -128,6 +132,19 @@ fun VoiceAddButton(
         )
     }
     DisposableEffect(Unit) { onDispose { controller.destroy() } }
+
+    // Loslassen/Senden ruft stop() auf, aber manche Geräte liefern danach nie onResults. Als
+    // Absicherung fällt stopAndSend() nach kurzer Wartezeit auf lastPartialText zurück, damit
+    // das Gesagte nie verloren geht (siehe spec-v1.md Fehlerfall).
+    fun stopAndSend() {
+        controller.stop()
+        scope.launch {
+            delay(1500)
+            if (state is VoiceUiState.Recording || state is VoiceUiState.Pinned) {
+                sendTranscript(lastPartialText)
+            }
+        }
+    }
 
     Column(horizontalAlignment = Alignment.End) {
         when (val s = state) {
@@ -161,7 +178,7 @@ fun VoiceAddButton(
                         modifier = Modifier
                             .size(56.dp)
                             .background(folderColor, CircleShape)
-                            .clickable { controller.stop() },
+                            .clickable { stopAndSend() },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(Icons.Filled.Check, contentDescription = "Senden", tint = onColor)
@@ -189,13 +206,14 @@ fun VoiceAddButton(
                             state = VoiceUiState.Error("", "Spracherkennung auf diesem Gerät nicht verfügbar")
                             false
                         } else {
+                            lastPartialText = ""
                             state = VoiceUiState.Recording("")
                             controller.start()
                             true
                         }
                     },
                     onPin = { state = VoiceUiState.Pinned((state as? VoiceUiState.Recording)?.partialText ?: "") },
-                    onReleaseWithoutPin = { controller.stop() },
+                    onReleaseWithoutPin = { stopAndSend() },
                     recording = state is VoiceUiState.Recording,
                     color = folderColor,
                 )

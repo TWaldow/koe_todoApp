@@ -13,6 +13,8 @@ from app.models import Folder, ServerSettings, Todo
 from app.serializers import to_read, logical_now
 from app import claude_client
 
+import anthropic
+
 router = APIRouter(prefix="/voice-todos", tags=["voice"], dependencies=[Depends(require_token)])
 
 WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
@@ -50,6 +52,11 @@ def create_voice_todos(data: schemas.VoiceRequest, db: Session = Depends(get_db)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Could not parse response from Claude",
+        )
+    except anthropic.APIError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Claude API not reachable",
         )
 
     created: list[Todo] = []

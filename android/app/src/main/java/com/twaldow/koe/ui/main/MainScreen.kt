@@ -166,10 +166,24 @@ private fun FolderTodoList(
     onEdit: (Todo) -> Unit,
 ) {
     val sections = uiState.sections
+    val isEmpty = uiState.urgentTodos.isEmpty() &&
+        sections.daily.isEmpty() && sections.weekly.isEmpty() && sections.monthly.isEmpty() && sections.oneTime.isEmpty()
+
+    if (isEmpty) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                "Keine Todos in \"${folder.name}\"",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (uiState.urgentTodos.isNotEmpty()) {
             item { SectionLabel("Dringend") }
@@ -212,7 +226,8 @@ private fun FolderTodoList(
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.titleMedium,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
         modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
     )
 }
@@ -245,7 +260,7 @@ private fun TodoRow(todo: Todo, folderColorHex: String, onToggle: (Todo) -> Unit
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(background, RoundedCornerShape(8.dp))
+            .background(background, RoundedCornerShape(14.dp))
             .clickable { onEdit(todo) }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

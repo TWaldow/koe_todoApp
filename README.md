@@ -47,8 +47,58 @@ android/   Android-App und Widgets
 
 ## Setup
 
-Folgt, sobald das Grundgerüst steht.
+### Backend starten
+
+```
+cd backend
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+(`backend/.env` muss existieren, siehe Kommentare darin für die nötigen Werte.)
+
+`--host 0.0.0.0` ist wichtig, sonst ist der Server nur vom PC selbst erreichbar, nicht vom
+Handy im WLAN. Falls Windows beim ersten Start eine Firewall-Eingabeaufforderung zeigt
+(oder nicht erreichbar bleibt), muss eingehender Traffic auf Port 8000 erlaubt werden
+(Windows-Firewall -> Eingehende Regeln -> für Python/uvicorn bzw. den Port freigeben).
+
+Erreichbarkeit prüfen: `curl http://<LAN-IP-des-Rechners>:8000/health` sollte
+`{"status":"ok"}` liefern - einmal vom Rechner selbst, einmal vom Handy-Browser aus.
+
+### Android-App bauen und installieren
+
+1. `android/local.properties.example` nach `android/local.properties` kopieren und ausfüllen:
+   - `sdk.dir`: Pfad zum Android SDK
+   - `koe.baseUrl`: `http://<LAN-IP-des-Rechners>:8000/` (Emulator: `http://10.0.2.2:8000/`)
+   - `koe.apiToken`: muss zu `API_TOKEN` in `backend/.env` passen
+2. Falls sich die LAN-IP ändert, auch
+   `android/app/src/main/res/xml/network_security_config.xml` anpassen - dort ist
+   Klartext-HTTP nur für die dort eingetragenen Adressen erlaubt.
+3. Gerät per USB oder drahtlosem Debugging verbinden (`adb devices` muss es zeigen; bei
+   WLAN-Debugging ggf. `adb mdns services` zur Fehlersuche, falls die Verbindung abreißt).
+4. Bauen und installieren:
+   ```
+   cd android
+   ./gradlew :app:assembleDebug
+   adb install -r app/build/outputs/apk/debug/app-debug.apk
+   ```
+   Oder einfach über Android Studio "Run" auf das verbundene Gerät.
+
+Handy und Rechner müssen im selben WLAN sein (Thin Client - die App lädt bei jeder
+Aktion frisch vom Backend, es gibt keinen Offline-Modus).
+
+### Tests
+
+```
+cd android
+./gradlew :app:testDebugUnitTest
+```
 
 ## Status
 
 In Entwicklung. Persönliches Projekt, eine Veröffentlichung als Open Source ist angedacht.
+
+Umgesetzt: Ordner/Todos anzeigen (Hauptscreen mit Swipe, Dringend/Wiederkehrend/Einmalig),
+Abhaken mit Rückgängig-Snackbar, Bearbeiten/Löschen-Formular, Ordnerverwaltung,
+Sprachaufnahme über den Hinzufügen-Button (SpeechRecognizer de-DE -> `/voice-todos`).
+Nicht umgesetzt: Home-Screen-Widgets (Slice 3), Kalender-Anbindung, `/settings`
+(Backend liefert dafür bewusst `501`).

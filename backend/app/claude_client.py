@@ -38,10 +38,16 @@ def parse_transcript(text: str, today_iso: str, weekday: str, folder_names: list
 
     response = _get_client().messages.create(
         model="claude-haiku-5-5",
-        max_tokens=1024,
+        max_tokens=4096,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     )
 
-    raw = response.content[0].text
+    text_blocks = [b.text for b in response.content if b.type == "text"]
+    if not text_blocks:
+        raise ValueError("No text block in Claude response")
+
+    raw = text_blocks[0].strip()
+    if raw.startswith("```"):  # falls Haiku doch Markdown-Fences schickt
+        raw = raw.strip("`").removeprefix("json").strip()
     return json.loads(raw)
