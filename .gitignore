@@ -10,6 +10,18 @@
 .env.*
 !.env.example
 
+# --- Conda (falls ihr eine env-Datei je exportiert) ---
+# (nur falls relevant, sonst weglassen)
+
+# --- Python Packaging ---
+*.egg-info/
+dist/
+build/
+
+# --- Coverage (falls ihr später pytest-cov nutzt) ---
+.coverage
+htmlcov/
+
 # --- Python / Backend ---
 __pycache__/
 *.py[cod]
