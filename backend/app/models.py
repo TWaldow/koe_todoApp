@@ -35,10 +35,12 @@ class Todo(Base):
     folder_id: Mapped[int] = mapped_column(ForeignKey("folders.id"))
     important: Mapped[bool] = mapped_column(default=False)
     recurrence: Mapped[Recurrence] = mapped_column(
-        SAEnum(Recurrence, name="recurrence", values_callable=lambda e: [m.value for m in e])
+        SAEnum(Recurrence, name="recurrence", values_callable=lambda e: [m.value for m in e]),
+        default=Recurrence.NONE,
     )
     recurrence_anchor: Mapped[date | None]
-    due_type: Mapped[DueType | None] = mapped_column(SAEnum(DueType, name="due_type"))
+    due_type: Mapped[DueType | None] = mapped_column(
+        SAEnum(DueType, name="due_type", values_callable=lambda e: [m.value for m in e]))
     due_date: Mapped[date | None]
     due_time: Mapped[time | None]  # erst mit Kalender-Feature
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -50,7 +50,7 @@ class TodoCreate(BaseModel):
     def check_due_rules(self):
         if (self.due_type is None) != (self.due_date is None):
             raise ValueError("due_type und due_date müssen beide gesetzt oder beide leer sein")
-        if self.recurrence != Recurrence.none and self.due_type is not None:
+        if self.recurrence != Recurrence.NONE and self.due_type is not None:
             raise ValueError("Wiederkehrende Todos haben in v1 keine Deadline")
         return self
 
