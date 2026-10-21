@@ -27,7 +27,9 @@ data class MainUiState(
 
 /**
  * Thin Client: haelt nur den aktuell angezeigten Zustand im Speicher, holt bei jeder
- * Aktion frisch vom Backend statt lokal zu cachen (siehe CONTEXT.md).
+ * Aktion frisch vom Backend statt lokal zu cachen (siehe CONTEXT.md). Activity-scoped
+ * (eine Instanz, siehe MainActivity), damit Edit-/Ordner-/Voice-Screens denselben
+ * Zustand sehen und nach Rückkehr per [refresh] aktualisieren können.
  */
 class MainViewModel(
     private val folderRepository: FolderRepository = FolderRepository(),
@@ -36,6 +38,9 @@ class MainViewModel(
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    /** Zwischenspeicher für den Sprung zum Bearbeiten-Formular - kein echter State (siehe EditTodoScreen). */
+    var pendingEditTodo: Todo? = null
 
     init {
         loadFolders()
@@ -46,7 +51,10 @@ class MainViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 val folders = folderRepository.getFolders()
-                _uiState.update { it.copy(folders = folders, currentFolderIndex = 0) }
+                val index = _uiState.value.currentFolder?.let { current ->
+                    folders.indexOfFirst { it.id == current.id }.takeIf { it >= 0 }
+                } ?: 0
+                _uiState.update { it.copy(folders = folders, currentFolderIndex = index) }
                 loadUrgentTodos()
                 loadTodosForCurrentFolder()
             } catch (e: Exception) {
@@ -59,6 +67,35 @@ class MainViewModel(
         if (index == _uiState.value.currentFolderIndex) return
         _uiState.update { it.copy(currentFolderIndex = index) }
         loadTodosForCurrentFolder()
+    }
+
+    /** Nach Rückkehr von Edit-/Ordner-/Voice-Screens: alles neu laden (kein lokaler Cache). */
+    fun refresh() {
+        loadFolders()
+    }
+
+    fun completeTodo(id: Int) {
+        viewModelScope.launch {
+            try {
+                todoRepository.completeTodo(id)
+                loadTodosForCurrentFolder()
+                loadUrgentTodos()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: e.toString()) }
+            }
+        }
+    }
+
+    fun uncompleteTodo(id: Int) {
+        viewModelScope.launch {
+            try {
+                todoRepository.uncompleteTodo(id)
+                loadTodosForCurrentFolder()
+                loadUrgentTodos()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: e.toString()) }
+            }
+        }
     }
 
     private fun loadTodosForCurrentFolder() {

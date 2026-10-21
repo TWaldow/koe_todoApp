@@ -2,9 +2,11 @@ package com.twaldow.koe.ui.main
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,55 +23,112 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import com.twaldow.koe.domain.model.Folder
 import com.twaldow.koe.domain.model.Todo
+import com.twaldow.koe.ui.voice.VoiceAddButton
 import com.twaldow.koe.util.needsDarkText
 import com.twaldow.koe.viewmodel.MainUiState
 import com.twaldow.koe.viewmodel.MainViewModel
+import kotlinx.coroutines.launch
 
 private fun parseColor(hex: String): Color = Color(android.graphics.Color.parseColor(hex))
 
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, viewModel: MainViewModel = viewModel()) {
+fun MainScreen(
+    navController: NavHostController,
+    viewModel: MainViewModel,
+    modifier: Modifier = Modifier,
+) {
     val uiState by viewModel.uiState.collectAsState()
     val folders = uiState.folders
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    if (folders.isEmpty()) {
-        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            if (uiState.error != null) {
-                Text("Fehler: ${uiState.error}")
-            } else {
-                CircularProgressIndicator()
+    fun onToggle(todo: Todo) {
+        if (todo.isDone) {
+            viewModel.uncompleteTodo(todo.id)
+        } else {
+            viewModel.completeTodo(todo.id)
+            scope.launch {
+                val result = snackbarHostState.showSnackbar("Erledigt", actionLabel = "Rückgängig")
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.uncompleteTodo(todo.id)
+                }
             }
         }
-        return
     }
 
-    val pagerState = rememberPagerState(initialPage = 0) { folders.size }
-    LaunchedEffect(pagerState.currentPage) {
-        viewModel.selectFolder(pagerState.currentPage)
+    fun onEdit(todo: Todo) {
+        viewModel.pendingEditTodo = todo
+        navController.navigate("edit_todo")
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        FolderHeader(folder = folders[pagerState.currentPage], folderCount = folders.size, currentIndex = pagerState.currentPage)
+    fun onAdd() {
+        viewModel.pendingEditTodo = null
+        navController.navigate("edit_todo")
+    }
 
-        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-            if (page == uiState.currentFolderIndex && !uiState.isLoading) {
-                FolderTodoList(folder = folders[page], uiState = uiState)
-            } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Scaffold(
+        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            VoiceAddButton(
+                folderId = uiState.currentFolder?.id,
+                folderColorHex = uiState.currentFolder?.color ?: "#4169E1",
+                onManualAdd = { onAdd() },
+                onCreated = { viewModel.refresh() },
+            )
+        },
+    ) { padding ->
+        if (folders.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                if (uiState.error != null) {
+                    Text("Fehler: ${uiState.error}")
+                } else {
                     CircularProgressIndicator()
+                }
+            }
+            return@Scaffold
+        }
+
+        val pagerState = rememberPagerState(initialPage = 0) { folders.size }
+        LaunchedEffect(pagerState.currentPage) {
+            viewModel.selectFolder(pagerState.currentPage)
+        }
+
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            FolderHeader(
+                folder = folders[pagerState.currentPage],
+                folderCount = folders.size,
+                currentIndex = pagerState.currentPage,
+                onHeaderClick = { navController.navigate("folders") },
+            )
+
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                if (page == uiState.currentFolderIndex && !uiState.isLoading) {
+                    FolderTodoList(folder = folders[page], uiState = uiState, onToggle = ::onToggle, onEdit = ::onEdit)
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
             }
         }
@@ -77,10 +136,10 @@ fun MainScreen(modifier: Modifier = Modifier, viewModel: MainViewModel = viewMod
 }
 
 @Composable
-private fun FolderHeader(folder: Folder, folderCount: Int, currentIndex: Int) {
+private fun FolderHeader(folder: Folder, folderCount: Int, currentIndex: Int, onHeaderClick: () -> Unit) {
     val color = parseColor(folder.color)
     Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 12.dp).clickable { onHeaderClick() },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(text = folder.name, style = MaterialTheme.typography.headlineMedium, color = color)
@@ -100,17 +159,22 @@ private fun FolderHeader(folder: Folder, folderCount: Int, currentIndex: Int) {
 }
 
 @Composable
-private fun FolderTodoList(folder: Folder, uiState: MainUiState) {
+private fun FolderTodoList(
+    folder: Folder,
+    uiState: MainUiState,
+    onToggle: (Todo) -> Unit,
+    onEdit: (Todo) -> Unit,
+) {
     val sections = uiState.sections
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (uiState.urgentTodos.isNotEmpty()) {
             item { SectionLabel("Dringend") }
             items(uiState.urgentTodos, key = { "urgent-${it.id}" }) { todo ->
-                TodoRow(todo = todo, folderColorHex = folder.color)
+                TodoRow(todo = todo, folderColorHex = folder.color, onToggle = onToggle, onEdit = onEdit)
             }
         }
 
@@ -120,26 +184,26 @@ private fun FolderTodoList(folder: Folder, uiState: MainUiState) {
             if (sections.daily.isNotEmpty()) {
                 item { SubSectionLabel("Täglich") }
                 items(sections.daily, key = { "daily-${it.id}" }) { todo ->
-                    TodoRow(todo = todo, folderColorHex = folder.color)
+                    TodoRow(todo = todo, folderColorHex = folder.color, onToggle = onToggle, onEdit = onEdit)
                 }
             }
             if (sections.weekly.isNotEmpty()) {
                 item { SubSectionLabel("Wöchentlich") }
                 items(sections.weekly, key = { "weekly-${it.id}" }) { todo ->
-                    TodoRow(todo = todo, folderColorHex = folder.color)
+                    TodoRow(todo = todo, folderColorHex = folder.color, onToggle = onToggle, onEdit = onEdit)
                 }
             }
             if (sections.monthly.isNotEmpty()) {
                 item { SubSectionLabel("Monatlich") }
                 items(sections.monthly, key = { "monthly-${it.id}" }) { todo ->
-                    TodoRow(todo = todo, folderColorHex = folder.color)
+                    TodoRow(todo = todo, folderColorHex = folder.color, onToggle = onToggle, onEdit = onEdit)
                 }
             }
         }
 
         item { SectionLabel("Einmalig") }
         items(sections.oneTime, key = { "once-${it.id}" }) { todo ->
-            TodoRow(todo = todo, folderColorHex = folder.color)
+            TodoRow(todo = todo, folderColorHex = folder.color, onToggle = onToggle, onEdit = onEdit)
         }
     }
 }
@@ -164,12 +228,13 @@ private fun SubSectionLabel(text: String) {
 }
 
 /**
- * Checkbox ist hier nur Anzeige (kein Klick-Handler) - Abhaken kommt in Schritt b.
  * Wichtige Todos bekommen einen Zeilenhintergrund in Ordnerfarbe; Text-/Iconfarbe darauf
  * wird per Helligkeitsberechnung gewählt (needsDarkText), damit es z. B. auf Gelb lesbar bleibt.
+ * Tippen auf die Checkbox hakt ab/entfernt den Haken, Tippen auf den Rest der Zeile öffnet
+ * das Bearbeiten-Formular.
  */
 @Composable
-private fun TodoRow(todo: Todo, folderColorHex: String) {
+private fun TodoRow(todo: Todo, folderColorHex: String, onToggle: (Todo) -> Unit, onEdit: (Todo) -> Unit) {
     val background = if (todo.important) parseColor(folderColorHex) else Color.Transparent
     val contentColor = if (todo.important) {
         if (needsDarkText(folderColorHex)) Color.Black else Color.White
@@ -181,17 +246,24 @@ private fun TodoRow(todo: Todo, folderColorHex: String) {
         modifier = Modifier
             .fillMaxWidth()
             .background(background, RoundedCornerShape(8.dp))
+            .clickable { onEdit(todo) }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (todo.isDone) {
-            Icon(imageVector = Icons.Filled.CheckCircle, contentDescription = null, tint = contentColor)
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = "Erledigt, antippen zum Entfernen",
+                tint = contentColor,
+                modifier = Modifier.clickable { onToggle(todo) },
+            )
         } else {
             Box(
                 modifier = Modifier
                     .size(24.dp)
                     .border(width = 2.dp, color = contentColor, shape = CircleShape)
+                    .clickable { onToggle(todo) }
             )
         }
         Column(modifier = Modifier.weight(1f)) {
