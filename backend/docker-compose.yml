@@ -29,5 +29,14 @@ services:
       db:
         condition: service_healthy
 
+  dozzle:
+    image: amir20/dozzle:11.3.5 
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
 volumes:
   pgdata:

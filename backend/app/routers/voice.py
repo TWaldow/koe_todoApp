@@ -15,6 +15,11 @@ from app import claude_client
 
 import anthropic
 
+import logging
+import time
+
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/voice-todos", tags=["voice"], dependencies=[Depends(require_token)])
 
 WEEKDAYS = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
@@ -40,6 +45,8 @@ def create_voice_todos(data: schemas.VoiceRequest, db: Session = Depends(get_db)
     current_folder = db.get(Folder, data.folder_id) if data.folder_id else None
     current_folder_name = current_folder.name if current_folder else "Allgemein"
 
+    log.debug("Transkript: %r", data.text)
+    start = time.perf_counter()
     try:
         items = claude_client.parse_transcript(
             text=data.text,
@@ -49,15 +56,18 @@ def create_voice_todos(data: schemas.VoiceRequest, db: Session = Depends(get_db)
             current_folder=current_folder_name,
         )
     except (ValueError, KeyError, IndexError):
+        log.exception("Haiku-Antwort nicht parsebar")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Could not parse response from Claude",
         )
     except anthropic.APIError:
+        log.exception("Claude API Fehler")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Claude API not reachable",
         )
+    claude_ms = (time.perf_counter() - start) * 1000
 
     created: list[Todo] = []
     skipped: list[dict] = []
@@ -89,6 +99,10 @@ def create_voice_todos(data: schemas.VoiceRequest, db: Session = Depends(get_db)
     for todo in created:
         db.refresh(todo)
 
+    log.info(
+        "Haiku-Call %.0f ms, %d Todos erzeugt, %d übersprungen",
+        claude_ms, len(created), len(skipped),
+    )
     return schemas.VoiceResponse(
         created=[to_read(t, today, day_start) for t in created],
         skipped=skipped,
