@@ -5,7 +5,7 @@ sdk.dir=/pfad/zum/Android/Sdk
 # Backend-URL mit trailing slash.
 # Emulator -> Host-Loopback:  http://10.0.2.2:8000/
 # Echtes Geraet im selben WLAN wie das Backend -> LAN-IP des Rechners/Pi:
-koe.baseUrl=http://192.168.178.37:8000/
+koe.baseUrl=http://192.168.178.201:8000/
 
 # Muss zu API_TOKEN in backend/.env passen.
 koe.apiToken=
